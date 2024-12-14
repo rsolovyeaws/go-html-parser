@@ -5,9 +5,11 @@ const (
 	TokenEndTag         = "EndTag"
 	TokenSelfClosingTag = "SelfClosingTag"
 	TokenText           = "Text"
-	TokenAttribute      = "Attribute"
 	TokenComment        = "Comment"
 	TokenEOF            = "EOF"
+	doctypeDeclaration  = "DOCTYPE"
+	commentOpen         = "<!--"
+	commentClose        = "-->"
 )
 
 type Token struct {
@@ -29,8 +31,11 @@ func New(input string) *Lexer {
 	return l
 }
 
+//////////////////////////
+// Character Processing //
+//////////////////////////
+
 func (l *Lexer) readChar() {
-	//fmt.Printf("readChar: current='%c', position=%d\n", l.ch, l.position) // Debug log
 	if l.readPosition >= len(l.input) {
 		l.ch = 0 // ASCII code for "NUL"
 	} else {
@@ -47,6 +52,16 @@ func (l *Lexer) peekChar() byte {
 	return l.input[l.readPosition]
 }
 
+func (l *Lexer) skipWhitespace() {
+	for l.ch == ' ' || l.ch == '\n' || l.ch == '\t' || l.ch == '\r' {
+		l.readChar()
+	}
+}
+
+//////////////////////
+// Token Processing //
+//////////////////////
+
 func (l *Lexer) NextToken() Token {
 	l.skipWhitespace()
 
@@ -56,6 +71,9 @@ func (l *Lexer) NextToken() Token {
 			l.readChar()
 			return l.readEndTag()
 		} else if l.peekChar() == '!' {
+			if l.input[l.position+2:l.position+9] == doctypeDeclaration {
+				return l.readDoctype()
+			}
 			return l.readComment()
 		} else {
 			return l.readStartTag()
@@ -67,34 +85,41 @@ func (l *Lexer) NextToken() Token {
 	}
 }
 
+func (l *Lexer) readDoctype() Token {
+	l.readChar() // Consume '<'
+	l.readChar() // Consume '!'
+
+	start := l.position
+	for l.ch != '>' && l.ch != 0 {
+		l.readChar()
+	}
+
+	value := l.input[start:l.position]
+	l.readChar() // Consume '>'
+	return Token{Type: TokenComment, Value: value}
+}
+
 func (l *Lexer) readStartTag() Token {
 	l.readChar() // Consume '<'
 	tagName := l.readIdentifier()
 
-	l.skipWhitespace() // Ensure no leading spaces before attributes
+	l.skipWhitespace()
 	attributes := l.readAttributes()
 
-	if l.ch == '/' && l.peekChar() == '>' { // Self-closing tag
+	if l.ch == '/' && l.peekChar() == '>' {
 		l.readChar() // Consume '/'
 		l.readChar() // Consume '>'
-		if attributes != "" {
-			return Token{Type: TokenSelfClosingTag, Value: tagName + " " + attributes}
-		}
-		return Token{Type: TokenSelfClosingTag, Value: tagName}
+		return Token{Type: TokenSelfClosingTag, Value: trimSpaces(tagName + " " + attributes)}
 	}
 
 	l.readChar() // Consume '>'
-	if attributes != "" {
-		return Token{Type: TokenStartTag, Value: tagName + " " + attributes}
-	}
-	return Token{Type: TokenStartTag, Value: tagName}
+	return Token{Type: TokenStartTag, Value: trimSpaces(tagName + " " + attributes)}
 }
 
 func (l *Lexer) readEndTag() Token {
 	l.readChar()                  // Consume '<' and '/'
-	tagName := l.readIdentifier() // Read the tag name starting at the correct position
+	tagName := l.readIdentifier() // Read the tag name
 	l.readChar()                  // Consume '>'
-
 	return Token{Type: TokenEndTag, Value: tagName}
 }
 
@@ -103,18 +128,38 @@ func (l *Lexer) readComment() Token {
 	l.readChar() // Consume '!'
 	l.readChar() // Consume '-'
 	l.readChar() // Consume '-'
-	l.skipWhitespace()
-	// Start reading after `<!--`
+
 	start := l.position
+	depth := 1
+
 	for {
-		if l.position+3 <= len(l.input) && l.input[l.position:l.position+3] == "-->" {
+		// Check if we've reached the end of input
+		if l.position >= len(l.input) {
 			break
 		}
+
+		// Handle nested `<!--` safely
+		if l.position+4 <= len(l.input) && l.input[l.position:l.position+4] == "<!--" {
+			depth++
+			l.position += 4
+			continue
+		}
+
+		// Handle closing `-->` safely
+		if l.position+3 <= len(l.input) && l.input[l.position:l.position+3] == "-->" {
+			depth--
+			if depth == 0 {
+				break
+			}
+			l.position += 3
+			continue
+		}
+
 		l.readChar()
 	}
 
-	// Extract the comment value, stopping before `-->`
-	comment := trimTrailingSpaces(l.input[start:l.position])
+	// Extract the comment value and trim spaces
+	comment := trimSpaces(l.input[start:l.position])
 	l.readChar() // Consume '-'
 	l.readChar() // Consume '-'
 	l.readChar() // Consume '>'
@@ -127,40 +172,16 @@ func (l *Lexer) readText() Token {
 	return Token{Type: TokenText, Value: text}
 }
 
-func (l *Lexer) readIdentifier() string {
-	start := l.position
-	for isLetter(l.ch) || isDigit(l.ch) || l.ch == '-' || l.ch == '_' {
-		l.readChar() // Move to the next character
-	}
-	identifier := l.input[start:l.position]
-	// fmt.Printf("readIdentifier: '%s'\n", identifier) // Debugging final identifier
-	return identifier
-}
-
-func (l *Lexer) readAttributes() string {
-	start := l.position
-	for l.ch != '>' && l.ch != '/' && l.ch != 0 {
-		l.readChar()
-	}
-	return trimTrailingSpaces(l.input[start:l.position])
-}
-
-func trimTrailingSpaces(s string) string {
-	end := len(s)
-	for end > 0 && s[end-1] == ' ' {
-		end--
-	}
-	return s[:end]
-}
+////////////////////////
+// Helper Methods     //
+////////////////////////
 
 func (l *Lexer) readUntil(stop string) string {
 	start := l.position
 	for {
-		// Prevent slicing out of bounds
-		if l.position+len(stop) > len(l.input) {
+		if l.position >= len(l.input) {
 			break
 		}
-		// Stop if the `stop` string is found
 		if l.input[l.position:l.position+len(stop)] == stop {
 			break
 		}
@@ -169,11 +190,36 @@ func (l *Lexer) readUntil(stop string) string {
 	return l.input[start:l.position]
 }
 
-func (l *Lexer) skipWhitespace() {
-	for l.ch == ' ' || l.ch == '\n' || l.ch == '\t' || l.ch == '\r' {
+func (l *Lexer) readIdentifier() string {
+	start := l.position
+	for isLetter(l.ch) || isDigit(l.ch) || l.ch == '-' || l.ch == '_' {
 		l.readChar()
 	}
+	return l.input[start:l.position]
 }
+
+func (l *Lexer) readAttributes() string {
+	start := l.position
+	for l.ch != '>' && l.ch != '/' && l.ch != 0 {
+		l.readChar()
+	}
+	return trimSpaces(l.input[start:l.position])
+}
+
+func trimSpaces(s string) string {
+	start, end := 0, len(s)
+	for start < end && s[start] == ' ' {
+		start++
+	}
+	for end > start && s[end-1] == ' ' {
+		end--
+	}
+	return s[start:end]
+}
+
+////////////////////////
+// Character Checks   //
+////////////////////////
 
 func isLetter(ch byte) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')

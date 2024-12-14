@@ -80,3 +80,88 @@ func TestLexer(t *testing.T) {
 		})
 	}
 }
+
+func TestLexerExpanded(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		expectedTokens []Token
+	}{
+		{
+			name:  "Attributes Without Quotes",
+			input: `<div id=test class=test-class>Content</div>`,
+			expectedTokens: []Token{
+				{Type: TokenStartTag, Value: "div id=test class=test-class"},
+				{Type: TokenText, Value: "Content"},
+				{Type: TokenEndTag, Value: "div"},
+				{Type: TokenEOF, Value: ""},
+			},
+		},
+		{
+			name:  "Special Characters in Attributes",
+			input: `<input value="Tom & Jerry" disabled>`,
+			expectedTokens: []Token{
+				{Type: TokenStartTag, Value: `input value="Tom & Jerry" disabled`},
+				{Type: TokenEOF, Value: ""},
+			},
+		},
+		{
+			name:  "Nested Comments",
+			input: `<!-- Outer <!-- Inner --> -->`,
+			expectedTokens: []Token{
+				{Type: TokenComment, Value: "Outer <!-- Inner -->"},
+				{Type: TokenEOF, Value: ""},
+			},
+		},
+		{
+			name:  "Invalid Tags",
+			input: `<123invalid>Text</123invalid>`,
+			expectedTokens: []Token{
+				{Type: TokenStartTag, Value: "123invalid"},
+				{Type: TokenText, Value: "Text"},
+				{Type: TokenEndTag, Value: "123invalid"},
+				{Type: TokenEOF, Value: ""},
+			},
+		},
+		{
+			name:  "HTML with Doctype Declaration",
+			input: `<!DOCTYPE html><html></html>`,
+			expectedTokens: []Token{
+				{Type: TokenComment, Value: "DOCTYPE html"},
+				{Type: TokenStartTag, Value: "html"},
+				{Type: TokenEndTag, Value: "html"},
+				{Type: TokenEOF, Value: ""},
+			},
+		},
+		{
+			name:  "Missing End Tags",
+			input: `<div><span>Text`,
+			expectedTokens: []Token{
+				{Type: TokenStartTag, Value: "div"},
+				{Type: TokenStartTag, Value: "span"},
+				{Type: TokenText, Value: "Text"},
+				{Type: TokenEOF, Value: ""},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := New(tt.input)
+
+			for i, expected := range tt.expectedTokens {
+				tok := l.NextToken()
+
+				if tok.Type != expected.Type {
+					t.Fatalf("test '%s' [%d] - tokentype wrong. expected=%q, got=%q",
+						tt.name, i, expected.Type, tok.Type)
+				}
+
+				if tok.Value != expected.Value {
+					t.Fatalf("test '%s' [%d] - tokenvalue wrong. expected=%q, got=%q",
+						tt.name, i, expected.Value, tok.Value)
+				}
+			}
+		})
+	}
+}
