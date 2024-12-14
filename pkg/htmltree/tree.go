@@ -9,6 +9,7 @@ type Node struct {
 	Attributes map[string]string
 	Children   []*Node
 	Text       string
+	Parent     *Node
 }
 
 func NewTree() *Tree {
