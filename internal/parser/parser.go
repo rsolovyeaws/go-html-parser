@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/rsolovyeaws/go-html-parser/internal/lexer"
 )
@@ -29,48 +30,56 @@ func (p *Parser) Parse() *Node {
 		Children: []*Node{},
 	}
 
-	stack := []*Node{root}
+	stack := []*Node{root} // Stack to track open elements
 
 	for p.curr.Type != lexer.TokenEOF {
 		switch p.curr.Type {
 		case lexer.TokenStartTag:
 			node := p.parseElement()
+			// Implicitly close open tags based on HTML rules
 			for len(stack) > 1 && isImplicitClose(stack[len(stack)-1].TagName, node.TagName) {
-				stack = stack[:len(stack)-1] // Implicitly close the tag
+				stack = stack[:len(stack)-1] // Pop the stack
 			}
-			stack[len(stack)-1].Children = append(stack[len(stack)-1].Children, node)
+			// Add the node to the current parent
+			appendChild(stack[len(stack)-1], node)
+			// Push non-void elements onto the stack
 			if !isVoidElement(node.TagName) {
-				stack = append(stack, node) // Push non-void elements onto the stack
+				stack = append(stack, node)
 			}
+
 		case lexer.TokenSelfClosingTag:
 			node := p.parseElement()
-			stack[len(stack)-1].Children = append(stack[len(stack)-1].Children, node)
+			appendChild(stack[len(stack)-1], node)
+
 		case lexer.TokenEndTag:
-			// Match the current end tag with the stack
+			// Pop the stack for matching end tags
 			for len(stack) > 1 {
 				if stack[len(stack)-1].TagName == p.curr.Value {
-					stack = stack[:len(stack)-1] // Pop the matching tag
+					stack = stack[:len(stack)-1]
 					break
 				}
-				// If no match, implicitly close the unclosed tag
-				stack = stack[:len(stack)-1]
+				stack = stack[:len(stack)-1] // Implicitly close unclosed tags
 			}
+
 		case lexer.TokenText:
 			content := DecodeEntities(p.curr.Value)
 			if content != "" {
-				node := &Node{
+				textNode := &Node{
 					Type:    NodeText,
 					Content: content,
 				}
-				stack[len(stack)-1].Children = append(stack[len(stack)-1].Children, node)
+				appendChild(stack[len(stack)-1], textNode)
 			}
+
 		case lexer.TokenComment:
-			node := &Node{
+			commentNode := &Node{
 				Type:    NodeComment,
 				Content: p.curr.Value,
 			}
-			stack[len(stack)-1].Children = append(stack[len(stack)-1].Children, node)
+			appendChild(stack[len(stack)-1], commentNode)
 		}
+
+		// Move to the next token
 		p.nextToken()
 	}
 
@@ -79,7 +88,7 @@ func (p *Parser) Parse() *Node {
 		stack = stack[:len(stack)-1]
 	}
 
-	debugNode(root, "")
+	debugNode(root, "") // Debugging output for tree structure
 	return root
 }
 
@@ -131,4 +140,54 @@ func isImplicitClose(current, next string) bool {
 		}
 	}
 	return false
+}
+
+func (n *Node) FindByTag(tag string) []*Node {
+	var result []*Node
+	if n.TagName == tag {
+		result = append(result, n)
+	}
+	for _, child := range n.Children {
+		result = append(result, child.FindByTag(tag)...)
+	}
+	return result
+}
+
+func (n *Node) FindByID(id string) *Node {
+	if val, ok := n.Attributes["id"]; ok && val == id {
+		return n
+	}
+	for _, child := range n.Children {
+		if found := child.FindByID(id); found != nil {
+			return found
+		}
+	}
+	return nil
+}
+
+func (n *Node) FindByClass(class string) []*Node {
+	var result []*Node
+	if val, ok := n.Attributes["class"]; ok {
+		classes := strings.Fields(val)
+		for _, c := range classes {
+			if c == class {
+				result = append(result, n)
+				break
+			}
+		}
+	}
+	for _, child := range n.Children {
+		result = append(result, child.FindByClass(class)...)
+	}
+	return result
+}
+
+func appendChild(parent *Node, child *Node) {
+	if len(parent.Children) > 0 {
+		prev := parent.Children[len(parent.Children)-1]
+		prev.NextSibling = child
+		child.PrevSibling = prev
+	}
+	child.Parent = parent
+	parent.Children = append(parent.Children, child)
 }
