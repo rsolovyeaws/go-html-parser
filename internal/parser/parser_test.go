@@ -358,131 +358,131 @@ func TestParserExpanded(t *testing.T) {
 				},
 			},
 		},
-		// {
-		// 	name:  "Real-World Sample",
-		// 	input: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Test</title></head><body><div class="container"><h1>Main Heading</h1><p>A <strong>bold</strong> statement.</p></div></body></html>`,
-		// 	expectedRoot: &Node{
-		// 		Type:    NodeElement,
-		// 		TagName: "root",
-		// 		Children: []*Node{
-		// 			{
-		// 				Type:    NodeComment,
-		// 				Content: "DOCTYPE html",
-		// 			},
-		// 			{
-		// 				Type:       NodeElement,
-		// 				TagName:    "html",
-		// 				Attributes: map[string]string{"lang": "en"},
-		// 				Children: []*Node{
-		// 					{
-		// 						Type:    NodeElement,
-		// 						TagName: "head",
-		// 						Children: []*Node{
-		// 							{
-		// 								Type:       NodeElement,
-		// 								TagName:    "meta",
-		// 								Attributes: map[string]string{"charset": "UTF-8"},
-		// 							},
-		// 							{
-		// 								Type:    NodeElement,
-		// 								TagName: "title",
-		// 								Children: []*Node{
-		// 									{
-		// 										Type:    NodeText,
-		// 										Content: "Test",
-		// 									},
-		// 								},
-		// 							},
-		// 						},
-		// 					},
-		// 					{
-		// 						Type:    NodeElement,
-		// 						TagName: "body",
-		// 						Children: []*Node{
-		// 							{
-		// 								Type:       NodeElement,
-		// 								TagName:    "div",
-		// 								Attributes: map[string]string{"class": "container"},
-		// 								Children: []*Node{
-		// 									{
-		// 										Type:    NodeElement,
-		// 										TagName: "h1",
-		// 										Children: []*Node{
-		// 											{
-		// 												Type:    NodeText,
-		// 												Content: "Main Heading",
-		// 											},
-		// 										},
-		// 									},
-		// 									{
-		// 										Type:    NodeElement,
-		// 										TagName: "p",
-		// 										Children: []*Node{
-		// 											{
-		// 												Type:    NodeText,
-		// 												Content: "A ",
-		// 											},
-		// 											{
-		// 												Type:    NodeElement,
-		// 												TagName: "strong",
-		// 												Children: []*Node{
-		// 													{
-		// 														Type:    NodeText,
-		// 														Content: "bold",
-		// 													},
-		// 												},
-		// 											},
-		// 											{
-		// 												Type:    NodeText,
-		// 												Content: " statement.",
-		// 											},
-		// 										},
-		// 									},
-		// 								},
-		// 							},
-		// 						},
-		// 					},
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name:  "Malformed Large Document",
-		// 	input: `<div><p>Paragraph 1<p>Paragraph 2</div>`,
-		// 	expectedRoot: &Node{
-		// 		Type:    NodeElement,
-		// 		TagName: "root",
-		// 		Children: []*Node{
-		// 			{
-		// 				Type:    NodeElement,
-		// 				TagName: "div",
-		// 				Children: []*Node{
-		// 					{
-		// 						Type:    NodeElement,
-		// 						TagName: "p",
-		// 						Children: []*Node{
-		// 							{
-		// 								Type:    NodeText,
-		// 								Content: "Paragraph 1",
-		// 							},
-		// 						},
-		// 					},
-		// 					{
-		// 						Type:    NodeElement,
-		// 						TagName: "p",
-		// 						Children: []*Node{
-		// 							{
-		// 								Type:    NodeText,
-		// 								Content: "Paragraph 2",
-		// 							},
-		// 						},
-		// 					},
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
+		{
+			name:  "Real-World Sample",
+			input: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Test</title></head><body><div class="container"><h1>Main Heading</h1><p>A <strong>bold</strong> statement.</p></div></body></html>`,
+			expectedRoot: &Node{
+				Type:    NodeElement,
+				TagName: "root",
+				Children: []*Node{
+					{
+						Type:    NodeComment,
+						Content: "DOCTYPE html",
+					},
+					{
+						Type:       NodeElement,
+						TagName:    "html",
+						Attributes: map[string]string{"lang": "en"},
+						Children: []*Node{
+							{
+								Type:    NodeElement,
+								TagName: "head",
+								Children: []*Node{
+									{
+										Type:       NodeElement,
+										TagName:    "meta",
+										Attributes: map[string]string{"charset": "UTF-8"},
+									},
+									{
+										Type:    NodeElement,
+										TagName: "title",
+										Children: []*Node{
+											{
+												Type:    NodeText,
+												Content: "Test",
+											},
+										},
+									},
+								},
+							},
+							{
+								Type:    NodeElement,
+								TagName: "body",
+								Children: []*Node{
+									{
+										Type:       NodeElement,
+										TagName:    "div",
+										Attributes: map[string]string{"class": "container"},
+										Children: []*Node{
+											{
+												Type:    NodeElement,
+												TagName: "h1",
+												Children: []*Node{
+													{
+														Type:    NodeText,
+														Content: "Main Heading",
+													},
+												},
+											},
+											{
+												Type:    NodeElement,
+												TagName: "p",
+												Children: []*Node{
+													{
+														Type:    NodeText,
+														Content: "A ",
+													},
+													{
+														Type:    NodeElement,
+														TagName: "strong",
+														Children: []*Node{
+															{
+																Type:    NodeText,
+																Content: "bold",
+															},
+														},
+													},
+													{
+														Type:    NodeText,
+														Content: " statement.",
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "Malformed Large Document",
+			input: `<div><p>Paragraph 1<p>Paragraph 2</div>`,
+			expectedRoot: &Node{
+				Type:    NodeElement,
+				TagName: "root",
+				Children: []*Node{
+					{
+						Type:    NodeElement,
+						TagName: "div",
+						Children: []*Node{
+							{
+								Type:    NodeElement,
+								TagName: "p",
+								Children: []*Node{
+									{
+										Type:    NodeText,
+										Content: "Paragraph 1",
+									},
+								},
+							},
+							{
+								Type:    NodeElement,
+								TagName: "p",
+								Children: []*Node{
+									{
+										Type:    NodeText,
+										Content: "Paragraph 2",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
