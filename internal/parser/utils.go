@@ -1,5 +1,12 @@
 package parser
 
+import "html"
+
+// DecodeEntities decodes HTML entities using Go's built-in function.
+func DecodeEntities(input string) string {
+	return html.UnescapeString(input)
+}
+
 func isVoidElement(tagName string) bool {
 	// List of void elements in HTML
 	voidElements := map[string]bool{

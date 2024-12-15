@@ -56,7 +56,7 @@ func (p *Parser) Parse() *Node {
 				stack = stack[:len(stack)-1]
 			}
 		case lexer.TokenText:
-			content := p.curr.Value
+			content := DecodeEntities(p.curr.Value)
 			if content != "" {
 				node := &Node{
 					Type:    NodeText,
@@ -85,10 +85,14 @@ func (p *Parser) Parse() *Node {
 
 // parseElement creates a Node from the current token
 func (p *Parser) parseElement() *Node {
+	decodedAttributes := make(map[string]string)
+	for key, value := range p.curr.Attributes {
+		decodedAttributes[key] = DecodeEntities(value) // Decode entities in attributes
+	}
 	return &Node{
 		Type:       NodeElement,
-		TagName:    p.curr.Value, // Only the tag name
-		Attributes: p.curr.Attributes,
+		TagName:    p.curr.Value,
+		Attributes: decodedAttributes,
 		Children:   []*Node{},
 	}
 }

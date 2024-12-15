@@ -118,6 +118,41 @@ func TestParser(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "Decode Entities in Text",
+			input: `<p>Tom &amp; Jerry</p>`,
+			expectedRoot: &Node{
+				Type:    NodeElement,
+				TagName: "root",
+				Children: []*Node{
+					{
+						Type:    NodeElement,
+						TagName: "p",
+						Children: []*Node{
+							{
+								Type:    NodeText,
+								Content: "Tom & Jerry",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:  "Decode Entities in Attributes",
+			input: `<img src="image.jpg" alt="Tom &amp; Jerry" />`,
+			expectedRoot: &Node{
+				Type:    NodeElement,
+				TagName: "root",
+				Children: []*Node{
+					{
+						Type:       NodeElement,
+						TagName:    "img",
+						Attributes: map[string]string{"src": "image.jpg", "alt": "Tom & Jerry"},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
