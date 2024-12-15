@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -14,7 +15,7 @@ func TestLexer(t *testing.T) {
 			name:  "Basic Tags",
 			input: `<div class="test" id="1">Hello</div>`,
 			expectedTokens: []Token{
-				{Type: TokenStartTag, Value: "div class=\"test\" id=\"1\""},
+				{Type: TokenStartTag, Value: "div", Attributes: map[string]string{"class": "test", "id": "1"}},
 				{Type: TokenText, Value: "Hello"},
 				{Type: TokenEndTag, Value: "div"},
 				{Type: TokenEOF, Value: ""},
@@ -24,7 +25,7 @@ func TestLexer(t *testing.T) {
 			name:  "Self-Closing Tag",
 			input: `<img src="image.jpg" />`,
 			expectedTokens: []Token{
-				{Type: TokenSelfClosingTag, Value: "img src=\"image.jpg\""},
+				{Type: TokenSelfClosingTag, Value: "img", Attributes: map[string]string{"src": "image.jpg"}},
 				{Type: TokenEOF, Value: ""},
 			},
 		},
@@ -58,40 +59,11 @@ func TestLexer(t *testing.T) {
 				{Type: TokenEOF, Value: ""},
 			},
 		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			l := New(tt.input)
-
-			for i, expected := range tt.expectedTokens {
-				tok := l.NextToken()
-
-				if tok.Type != expected.Type {
-					t.Fatalf("test '%s' [%d] - tokentype wrong. expected=%q, got=%q",
-						tt.name, i, expected.Type, tok.Type)
-				}
-
-				if tok.Value != expected.Value {
-					t.Fatalf("test '%s' [%d] - tokenvalue wrong. expected=%q, got=%q",
-						tt.name, i, expected.Value, tok.Value)
-				}
-			}
-		})
-	}
-}
-
-func TestLexerExpanded(t *testing.T) {
-	tests := []struct {
-		name           string
-		input          string
-		expectedTokens []Token
-	}{
 		{
 			name:  "Attributes Without Quotes",
 			input: `<div id=test class=test-class>Content</div>`,
 			expectedTokens: []Token{
-				{Type: TokenStartTag, Value: "div id=test class=test-class"},
+				{Type: TokenStartTag, Value: "div", Attributes: map[string]string{"id": "test", "class": "test-class"}},
 				{Type: TokenText, Value: "Content"},
 				{Type: TokenEndTag, Value: "div"},
 				{Type: TokenEOF, Value: ""},
@@ -101,7 +73,7 @@ func TestLexerExpanded(t *testing.T) {
 			name:  "Special Characters in Attributes",
 			input: `<input value="Tom & Jerry" disabled>`,
 			expectedTokens: []Token{
-				{Type: TokenStartTag, Value: `input value="Tom & Jerry" disabled`},
+				{Type: TokenStartTag, Value: "input", Attributes: map[string]string{"value": "Tom & Jerry", "disabled": ""}},
 				{Type: TokenEOF, Value: ""},
 			},
 		},
@@ -110,6 +82,16 @@ func TestLexerExpanded(t *testing.T) {
 			input: `<!-- Outer <!-- Inner --> -->`,
 			expectedTokens: []Token{
 				{Type: TokenComment, Value: "Outer <!-- Inner -->"},
+				{Type: TokenEOF, Value: ""},
+			},
+		},
+		{
+			name:  "Missing End Tags",
+			input: `<div><span>Text`,
+			expectedTokens: []Token{
+				{Type: TokenStartTag, Value: "div"},
+				{Type: TokenStartTag, Value: "span"},
+				{Type: TokenText, Value: "Text"},
 				{Type: TokenEOF, Value: ""},
 			},
 		},
@@ -133,16 +115,6 @@ func TestLexerExpanded(t *testing.T) {
 				{Type: TokenEOF, Value: ""},
 			},
 		},
-		{
-			name:  "Missing End Tags",
-			input: `<div><span>Text`,
-			expectedTokens: []Token{
-				{Type: TokenStartTag, Value: "div"},
-				{Type: TokenStartTag, Value: "span"},
-				{Type: TokenText, Value: "Text"},
-				{Type: TokenEOF, Value: ""},
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -161,7 +133,19 @@ func TestLexerExpanded(t *testing.T) {
 					t.Fatalf("test '%s' [%d] - tokenvalue wrong. expected=%q, got=%q",
 						tt.name, i, expected.Value, tok.Value)
 				}
+
+				if !reflect.DeepEqual(normalizeAttributes(tok.Attributes), normalizeAttributes(expected.Attributes)) {
+					t.Fatalf("test '%s' [%d] - tokenattributes wrong. expected=%v, got=%v",
+						tt.name, i, expected.Attributes, tok.Attributes)
+				}
 			}
 		})
 	}
+}
+
+func normalizeAttributes(attrs map[string]string) map[string]string {
+	if len(attrs) == 0 {
+		return nil
+	}
+	return attrs
 }

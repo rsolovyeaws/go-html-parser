@@ -1,5 +1,10 @@
 package lexer
 
+import (
+	"fmt"
+	"strings"
+)
+
 const (
 	TokenStartTag       = "StartTag"
 	TokenEndTag         = "EndTag"
@@ -13,9 +18,10 @@ const (
 )
 
 type Token struct {
-	Type     string
-	Value    string
-	Position int // Position in input for debugging
+	Type       string
+	Value      string
+	Position   int               // Position in input for debugging
+	Attributes map[string]string // Add this field for tag attributes
 }
 
 type Lexer struct {
@@ -63,24 +69,23 @@ func (l *Lexer) skipWhitespace() {
 //////////////////////
 
 func (l *Lexer) NextToken() Token {
-	l.skipWhitespace()
-
-	switch l.ch {
-	case '<':
-		if l.peekChar() == '/' {
+	// Skip leading whitespace only when outside of text
+	if l.ch == '<' {
+		switch {
+		case l.peekChar() == '/':
 			l.readChar()
 			return l.readEndTag()
-		} else if l.peekChar() == '!' {
+		case l.peekChar() == '!':
 			if l.input[l.position+2:l.position+9] == doctypeDeclaration {
 				return l.readDoctype()
 			}
 			return l.readComment()
-		} else {
+		default:
 			return l.readStartTag()
 		}
-	case 0:
+	} else if l.ch == 0 {
 		return Token{Type: TokenEOF, Value: ""}
-	default:
+	} else {
 		return l.readText()
 	}
 }
@@ -103,17 +108,65 @@ func (l *Lexer) readStartTag() Token {
 	l.readChar() // Consume '<'
 	tagName := l.readIdentifier()
 
-	l.skipWhitespace()
-	attributes := l.readAttributes()
+	attributes := make(map[string]string)
+	var fullTag strings.Builder
+	fullTag.WriteString(tagName) // Start with the tag name
 
-	if l.ch == '/' && l.peekChar() == '>' {
-		l.readChar() // Consume '/'
-		l.readChar() // Consume '>'
-		return Token{Type: TokenSelfClosingTag, Value: trimSpaces(tagName + " " + attributes)}
+	for {
+		l.skipWhitespace()
+		if l.ch == '/' && l.peekChar() == '>' {
+			return l.readSelfClosingTag(tagName, attributes)
+		}
+		if l.ch == '>' {
+			break
+		}
+		key := l.readIdentifier()
+		var value string
+		isQuoted := false
+		if l.ch == '=' {
+			l.readChar() // Consume '='
+			if l.ch == '"' || l.ch == '\'' {
+				isQuoted = true
+				quote := l.ch
+				l.readChar() // Consume opening quote
+				value = l.readUntil(string(quote))
+				l.readChar() // Consume closing quote
+			} else {
+				value = l.readIdentifier()
+			}
+		}
+		attributes[key] = value
+
+		// Append the key-value pair to the tag string
+		if value != "" {
+			if isQuoted {
+				fullTag.WriteString(fmt.Sprintf(` %s="%s"`, key, value))
+			} else {
+				fullTag.WriteString(fmt.Sprintf(` %s=%s`, key, value))
+			}
+		} else {
+			fullTag.WriteString(fmt.Sprintf(" %s", key))
+		}
 	}
 
 	l.readChar() // Consume '>'
-	return Token{Type: TokenStartTag, Value: trimSpaces(tagName + " " + attributes)}
+
+	return Token{
+		Type:       TokenStartTag,
+		Value:      tagName, // fullTag.String(),
+		Attributes: attributes,
+	}
+}
+
+func (l *Lexer) readSelfClosingTag(tagName string, attributes map[string]string) Token {
+	l.readChar() // Consume '/'
+	l.readChar() // Consume '>'
+
+	return Token{
+		Type:       TokenSelfClosingTag,
+		Value:      tagName,
+		Attributes: attributes,
+	}
 }
 
 func (l *Lexer) readEndTag() Token {
@@ -168,7 +221,11 @@ func (l *Lexer) readComment() Token {
 }
 
 func (l *Lexer) readText() Token {
-	text := l.readUntil("<")
+	start := l.position
+	for l.ch != '<' && l.ch != 0 { // Read until a '<' or EOF
+		l.readChar()
+	}
+	text := l.input[start:l.position] // Extract raw text
 	return Token{Type: TokenText, Value: text}
 }
 
