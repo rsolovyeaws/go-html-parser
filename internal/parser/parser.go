@@ -88,7 +88,7 @@ func (p *Parser) Parse() *Node {
 		stack = stack[:len(stack)-1]
 	}
 
-	debugNode(root, "") // Debugging output for tree structure
+	// debugNode(root, "") // Debugging output for tree structure
 	return root
 }
 
