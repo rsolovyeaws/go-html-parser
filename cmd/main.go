@@ -2,31 +2,52 @@ package main
 
 import (
 	"fmt"
-	"strings"
+	"log"
+	"os"
 
+	"github.com/rsolovyeaws/go-html-parser/internal/httpclient"
 	"github.com/rsolovyeaws/go-html-parser/internal/parser"
 )
 
 func main() {
-	// HTML as a single string
-	html := `<HTML><BODY><TABLE bgcolor="#e5e5e5" border="0" bordercolor="#ffffff" cellspacing="0" cellpadding="3" width="100%"><TR bgcolor="#DDDDDD"><TD width="15%" align="left" bgcolor="#ffffff" valign="top" style="font-size: 12px; font-weight: normal; font-family: Verdana; height: 27px"><B>Table Header Placeholder</B></TD></TR></TABLE><TABLE bgcolor="#e5e5e5" border="0" bordercolor="#ffffff" cellspacing="0" cellpadding="3" width="100%"><TR height="20"><TD align="middle" bgcolor="#e21212" width="15%" style="height: 17px"><FONT class="tekst"><B><FONT color="#ffffff" size="1" style="font-size: 11px; font-weight: normal; font-family: Verdana">Column Header 1</FONT></B></FONT></TD><TD align="middle" bgcolor="#e21212" width="25%" style="height: 17px"><FONT class="tekst"><B><FONT color="#ffffff" size="1" style="font-size: 11px; font-weight: normal; font-family: Verdana">Column Header 2</FONT></B></FONT></TD><TD align="middle" bgcolor="#e21212" width="60%" style="height: 17px"><FONT class="tekst"><B><FONT color="#ffffff" size="1" style="font-size: 11px; font-weight: normal; font-family: Verdana">Column Header 3</FONT></B></FONT></TD></TR><TR bgcolor="#DDDDDD"><TD width="15%" align="middle" valign="top" bgcolor="#ffffff" style="font-size: 11px; font-weight: normal; font-family: Verdana; height: 27px">Row 1 Cell 1</TD><TD width="25%" align="middle" valign="top" bgcolor="#ffffff" style="font-size: 11px; font-weight: normal; font-family: Verdana; height: 27px">Row 1 Cell 2</TD><TD width="60%" align="left" valign="top" bgcolor="#ffffff" style="font-size: 11px; font-weight: normal; font-family: Verdana; height: 27px">Row 1 Cell 3</TD></TR><TR bgcolor="#DDDDDD"><TD width="15%" align="middle" valign="top" bgcolor="#ffffff" style="font-size: 11px; font-weight: normal; font-family: Verdana; height: 27px">Row 2 Cell 1</TD><TD width="25%" align="middle" valign="top" bgcolor="#ffffff" style="font-size: 11px; font-weight: normal; font-family: Verdana; height: 27px">Row 2 Cell 2</TD><TD width="60%" align="left" valign="top" bgcolor="#ffffff" style="font-size: 11px; font-weight: normal; font-family: Verdana; height: 27px">Row 2 Cell 3</TD></TR></TABLE></BODY></HTML>`
+	// Default URL if none is provided
+	defaultURL := "https://elektrodistribucija.rs/planirana-iskljucenja-beograd/Dan_1_Iskljucenja.htm"
 
-	// Parse the HTML
-	fmt.Println("Parsing HTML...")
+	// Check if a URL argument is provided
+	var url string
+	if len(os.Args) > 1 {
+		url = os.Args[1]
+	} else {
+		url = defaultURL
+	}
+
+	// Headers to include in the request
+	headers := map[string]string{
+		"User-Agent": "Go-HTML-Parser",
+	}
+
+	// Fetch the HTML content from the provided URL
+	fmt.Println("Fetching URL:", url)
+	html, err := httpclient.FetchHTML(url, headers)
+	if err != nil {
+		log.Fatalf("Error fetching URL: %v", err)
+	}
+
+	// Parse the fetched HTML content
 	p := parser.New(html)
 	root := p.Parse()
 
-	// Print the entire DOM tree
-	fmt.Println("Parsed DOM Tree:")
-	printNode(root, "")
+	// Print the parsed tree
+	fmt.Println("\nParsed Tree:")
+	printTree(root, "")
 }
 
-// printNode recursively prints a node and its children with indentation
-func printNode(node *parser.Node, indent string) {
-	fmt.Printf("%sNode: Type=%s, TagName=%s, Attributes=%v, Content=%q\n",
-		indent, node.Type, node.TagName, node.Attributes, strings.TrimSpace(node.Content))
+// printTree recursively prints the parsed tree
+func printTree(node *parser.Node, indent string) {
+	fmt.Printf("%sNode: Type=%s, TagName=%s, Attributes=%v, Content=%s\n",
+		indent, node.Type, node.TagName, node.Attributes, node.Content)
 
 	for _, child := range node.Children {
-		printNode(child, indent+"  ")
+		printTree(child, indent+"  ")
 	}
 }
